@@ -9,7 +9,6 @@ app = Flask(__name__)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Strict short prompt for fast, punchy responses
 SYSTEM_PROMPT = (
     "You are Lead Hunter AI, an elite B2B sales strategist for Abuja, Nigeria. "
     "Keep responses extremely short and punchy. "
@@ -56,7 +55,6 @@ HTML_TEMPLATE = """
             width: auto;
             object-fit: contain;
         }
-        
         .briefing-box {
             background: #0f172a;
             border-left: 4px solid #38bdf8;
@@ -67,7 +65,6 @@ HTML_TEMPLATE = """
         .briefing-title { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 4px; }
         .briefing-heading { font-size: 1.1rem; font-weight: bold; color: #f8fafc; margin-bottom: 6px; }
         .briefing-desc { font-size: 0.9rem; color: #cbd5e1; line-height: 1.4; margin: 0; }
-
         .tags {
             display: flex;
             flex-wrap: wrap;
@@ -86,7 +83,6 @@ HTML_TEMPLATE = """
             transition: background 0.2s;
         }
         .tag:hover { background: rgba(56, 189, 248, 0.25); }
-
         .input-group {
             position: relative;
             background: #0f172a;
@@ -144,7 +140,6 @@ HTML_TEMPLATE = """
         }
         .send-btn:hover { background: #0369a1; }
         .send-btn:disabled { background: #475569; cursor: not-allowed; }
-
         .response-container {
             margin-top: 20px;
             background: #0f172a;
@@ -161,16 +156,13 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <!-- Exact custom user logo embedded -->
             <img src="https://raw.githubusercontent.com/nuelsdigital-bit/lead-hunter-bot/main/logo.png" alt="LeadHunter AI Logo" class="logo-img" onerror="this.src='https://i.ibb.co/3s8sX2c/logo.png'">
         </div>
-
         <div class="briefing-box">
             <div class="briefing-title">Briefing</div>
             <div class="briefing-heading">Every objection has a way in.</div>
             <p class="briefing-desc">Describe the deal, district, and blocker. Get a fast 3-step play and script built for Abuja.</p>
         </div>
-
         <div class="tags">
             <span class="tag" onclick="insertTag('Maitama')">MAITAMA</span>
             <span class="tag" onclick="insertTag('WUSE II')">WUSE II</span>
@@ -179,7 +171,6 @@ HTML_TEMPLATE = """
             <span class="tag" onclick="insertTag('UTAKO')">UTAKO</span>
             <span class="tag" onclick="insertTag('KUBWA')">KUBWA</span>
         </div>
-
         <form id="leadForm">
             <div class="input-group">
                 <textarea id="userQuery" placeholder="e.g. Developer in Maitama says they have an in-house team..."></textarea>
@@ -189,22 +180,18 @@ HTML_TEMPLATE = """
                 </div>
             </div>
         </form>
-
         <div id="loading" class="loading">⚡ Generating fast tactical play...</div>
-        
         <div id="responseContainer" class="response-container">
             <div class="response-header">Quick Tactical Output</div>
             <div id="responseBox" class="response-body"></div>
         </div>
     </div>
-
     <script>
         function insertTag(district) {
             const textarea = document.getElementById('userQuery');
             textarea.value = `Pitch strategy for ${district}: `;
             textarea.focus();
         }
-
         const form = document.getElementById('leadForm');
         const submitBtn = document.getElementById('submitBtn');
         const loading = document.getElementById('loading');
@@ -216,12 +203,10 @@ HTML_TEMPLATE = """
             e.preventDefault();
             const query = userQueryInput.value.trim();
             if (!query) return;
-
             submitBtn.disabled = true;
             loading.style.display = 'block';
             responseContainer.style.display = 'none';
             responseBox.innerText = '';
-
             try {
                 const res = await fetch('/generate', {
                     method: 'POST',
@@ -229,7 +214,6 @@ HTML_TEMPLATE = """
                     body: JSON.stringify({ query: query })
                 });
                 const data = await res.json();
-                
                 if (data.reply) {
                     responseBox.innerText = data.reply;
                 } else {
@@ -256,20 +240,19 @@ def index():
 def generate():
     data = request.get_json()
     user_query = data.get("query", "").strip()
-    
+
     if not user_query:
         return jsonify({"error": "Query cannot be empty"}), 400
 
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                
+                model="gemini-3.6-flash",
                 contents=user_query,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.6,
-                    max_output_tokens=250, # Forces short, lightning-fast replies
+                    max_output_tokens=250,
                 )
             )
             return jsonify({"reply": response.text})
@@ -283,4 +266,3 @@ def generate():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-    
