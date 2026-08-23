@@ -35,7 +35,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             # Asynchronous Gemini call with safe config
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-1.5-flash",
                 contents=user_query,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
