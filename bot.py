@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+import time
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
@@ -35,6 +36,7 @@ def home():
 
 def run_telegram_bot():
     """Runs the Telegram bot polling loop in a separate background thread."""
+    import asyncio
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
@@ -42,14 +44,21 @@ def run_telegram_bot():
         user_query = update.message.text.strip()
         await update.message.reply_text("🗣️ Lead Hunter AI: Analyzing market data & formulating strategy...")
         
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
-            )
-            reply = response.text
-        except Exception as e:
-            reply = f"⚠️ Error Details: {str(e)}"
+        reply = ""
+        # Automatic retry loop to handle 503 high-demand spikes
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
+                )
+                reply = response.text
+                break
+            except Exception as e:
+                if "503" in str(e) and attempt < 2:
+                    time.sleep(2)  # Wait 2 seconds before retrying
+                    continue
+                reply = f"⚠️ Error Details: {str(e)}"
             
         await update.message.reply_text(reply)
 
@@ -60,7 +69,6 @@ def run_telegram_bot():
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
-    import asyncio
     # Start Telegram bot in a background thread so Flask can run on the main thread
     bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
     bot_thread.start()
