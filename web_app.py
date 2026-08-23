@@ -1,5 +1,5 @@
 import os
-import asyncio
+import time
 from flask import Flask, render_template_string, request, jsonify
 from google import genai
 
@@ -10,7 +10,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 SYSTEM_PROMPT = (
     "You are Lead Hunter AI, an elite, high-end B2B sales strategist, corporate lead generator, "
-    "and business consultant specializing in the Nigerian market (especially Abuja: Maitama, Wuse, Utako, Guzape, etc.). "
+    "and business consultant specializing in the Nigerian market (especially Abuja: Maitama, Wuse, Utako, Guzape, Asokoro, Kubwa, etc.). "
     "Your users are ambitious professionals, service providers, and real estate entrepreneurs. "
     "Never give generic answers. Provide deep, actionable business intelligence, precise target departments, "
     "culturally tailored Nigerian corporate pitch hooks, objection-handling scripts, and insider market advice "
@@ -23,11 +23,11 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lead Hunter AI - Dashboard</title>
+    <title>Lead Hunter AI - Abuja B2B Sales Intelligence</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #0f172a;
+            background-color: #0b1120;
             color: #f8fafc;
             margin: 0;
             padding: 20px;
@@ -37,74 +37,189 @@ HTML_TEMPLATE = """
         }
         .container {
             width: 100%;
-            max-width: 600px;
+            max-width: 650px;
             background: #1e293b;
             padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            margin-top: 20px;
-        }
-        h1 { font-size: 1.5rem; color: #38bdf8; margin-top: 0; text-align: center; }
-        p.subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
-        textarea {
-            width: 100%;
-            height: 100px;
-            background: #0f172a;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            margin-top: 10px;
             border: 1px solid #334155;
-            color: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            resize: vertical;
-            box-sizing: border-box;
-            margin-bottom: 12px;
         }
-        textarea:focus { outline: none; border-color: #38bdf8; }
-        button {
-            width: 100%;
-            background: #0284c7;
-            color: white;
-            border: none;
-            padding: 12px;
-            font-size: 1rem;
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border: 2px solid #38bdf8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #38bdf8;
             font-weight: bold;
-            border-radius: 8px;
+        }
+        h1 { font-size: 1.4rem; color: #fff; margin: 0; }
+        .subtitle { font-size: 0.75rem; color: #38bdf8; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+        
+        .briefing-box {
+            background: #0f172a;
+            border-left: 4px solid #38bdf8;
+            padding: 14px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 16px;
+        }
+        .briefing-title { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .briefing-heading { font-size: 1.1rem; font-weight: bold; color: #f8fafc; margin-bottom: 6px; }
+        .briefing-desc { font-size: 0.9rem; color: #cbd5e1; line-height: 1.4; margin: 0; }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .tag {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #38bdf8;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
             cursor: pointer;
             transition: background 0.2s;
         }
-        button:hover { background: #0369a1; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        .response-box {
+        .tag:hover { background: rgba(56, 189, 248, 0.25); }
+
+        .input-group {
+            position: relative;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .input-group:focus-within { border-color: #38bdf8; }
+        textarea {
+            width: 100%;
+            height: 90px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 0.95rem;
+            resize: none;
+            box-sizing: border-box;
+            outline: none;
+            font-family: inherit;
+        }
+        .input-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #1e293b;
+            padding-top: 8px;
+        }
+        .mic-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .send-btn {
+            background: #0284c7;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .send-btn:hover { background: #0369a1; }
+        .send-btn:disabled { background: #475569; cursor: not-allowed; }
+
+        .response-container {
             margin-top: 20px;
             background: #0f172a;
             border: 1px solid #334155;
             padding: 16px;
-            border-radius: 8px;
-            white-space: pre-wrap;
-            line-height: 1.5;
+            border-radius: 12px;
             display: none;
         }
+        .response-header { font-size: 0.8rem; color: #38bdf8; text-transform: uppercase; margin-bottom: 8px; font-weight: bold; }
+        .response-body { white-space: pre-wrap; line-height: 1.6; font-size: 0.95rem; color: #e2e8f0; }
         .loading { color: #38bdf8; font-style: italic; text-align: center; margin-top: 15px; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Lead Hunter AI</h1>
-        <p class="subtitle">High-End B2B Sales & Real Estate Strategy Engine (Nigeria)</p>
-        
+        <div class="header">
+            <div class="logo-icon">⚡</div>
+            <div>
+                <h1>LeadHunter AI</h1>
+                <div class="subtitle">Abuja B2B Sales Intelligence</div>
+            </div>
+        </div>
+
+        <div class="briefing-box">
+            <div class="briefing-title">Briefing</div>
+            <div class="briefing-heading">Every objection has a way in.</div>
+            <p class="briefing-desc">Describe the deal, the district, and what's blocking you. Get a tactical 3-step play and a ready-to-use script — built for how business actually closes in Abuja.</p>
+        </div>
+
+        <div class="tags">
+            <span class="tag" onclick="insertTag('Maitama')">MAITAMA</span>
+            <span class="tag" onclick="insertTag('WUSE II')">WUSE II</span>
+            <span class="tag" onclick="insertTag('GUZAPE')">GUZAPE</span>
+            <span class="tag" onclick="insertTag('ASOKORO')">ASOKORO</span>
+            <span class="tag" onclick="insertTag('UTAKO')">UTAKO</span>
+            <span class="tag" onclick="insertTag('KUBWA')">KUBWA</span>
+        </div>
+
         <form id="leadForm">
-            <textarea id="userQuery" placeholder="e.g. Give me a strategy and script to pitch a real estate developer in Maitama..."></textarea>
-            <button type="submit" id="submitBtn">Generate Strategy</button>
+            <div class="input-group">
+                <textarea id="userQuery" placeholder="e.g. Real estate developer in Maitama says they have an in-house plumber..."></textarea>
+                <div class="input-actions">
+                    <button type="button" class="mic-btn" title="Voice input">🎙️</button>
+                    <button type="submit" id="submitBtn" class="send-btn" title="Send query">🚀</button>
+                </div>
+            </div>
         </form>
 
-        <div id="loading" class="loading">🗣️ Analyzing market data & formulating strategy...</div>
-        <div id="responseBox" class="response-box"></div>
+        <div id="loading" class="loading">🗣️ Analyzing Abuja market data & formulating strategy...</div>
+        
+        <div id="responseContainer" class="response-container">
+            <div class="response-header">Tactical Output & Script</div>
+            <div id="responseBox" class="response-body"></div>
+        </div>
     </div>
 
     <script>
+        function insertTag(district) {
+            const textarea = document.getElementById('userQuery');
+            textarea.value = `Give me a pitch strategy and script for a deal in ${district}: `;
+            textarea.focus();
+        }
+
         const form = document.getElementById('leadForm');
         const submitBtn = document.getElementById('submitBtn');
         const loading = document.getElementById('loading');
+        const responseContainer = document.getElementById('responseContainer');
         const responseBox = document.getElementById('responseBox');
         const userQueryInput = document.getElementById('userQuery');
 
@@ -115,7 +230,7 @@ HTML_TEMPLATE = """
 
             submitBtn.disabled = true;
             loading.style.display = 'block';
-            responseBox.style.display = 'none';
+            responseContainer.style.display = 'none';
             responseBox.innerText = '';
 
             try {
@@ -129,13 +244,13 @@ HTML_TEMPLATE = """
                 if (data.reply) {
                     responseBox.innerText = data.reply;
                 } else {
-                    responseBox.innerText = '⚠️ Error: ' + (data.error || 'Unknown error occurred.');
+                    responseBox.innerText = '⚠️ Error: ' + (data.error || 'Server rate limit exceeded. Please wait 30 seconds and try again.');
                 }
             } catch (err) {
                 responseBox.innerText = '⚠️ Network Error: ' + err.message;
             } finally {
                 loading.style.display = 'none';
-                responseBox.style.display = 'block';
+                responseContainer.style.display = 'block';
                 submitBtn.disabled = false;
             }
         });
@@ -156,15 +271,20 @@ def generate():
     if not user_query:
         return jsonify({"error": "Query cannot be empty"}), 400
 
-    try:
-        # Updated to use gemini-3.6-flash
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
-        )
-        return jsonify({"reply": response.text})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Added retry loop to safely handle temporary 429 quota spikes
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
+            )
+            return jsonify({"reply": response.text})
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str and attempt < 2:
+                time.sleep(3) # Wait briefly before retrying
+                continue
+            return jsonify({"error": error_str}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
