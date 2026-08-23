@@ -53,7 +53,9 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     port = int(os.environ.get("PORT", 10000))
-    webhook_url = f"https://lead-hunter-bot-bpql.onrender.com/{TELEGRAM_TOKEN}"
+    
+    # Corrected URL: using 'bpgf' to match your actual Render dashboard URL exactly
+    webhook_url = f"https://lead-hunter-bot-bpgf.onrender.com/{TELEGRAM_TOKEN}"
     
     # Run using the built-in async web server
     application.run_webhook(
