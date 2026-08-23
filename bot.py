@@ -46,9 +46,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
             
     # Telegram limits messages to 4096 characters
-MAX_LEN = 4000
-for i in range(0, len(reply), MAX_LEN):
-    await update.message.reply_text(reply[i:i+MAX_LEN])
+    MAX_LEN = 4000
+    for i in range(0, len(reply), MAX_LEN):
+        await update.message.reply_text(reply[i:i+MAX_LEN])
 
 def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
