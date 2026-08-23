@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 import traceback
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
@@ -45,10 +46,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("🤖 Lead Hunter AI Dynamic Engine Active...")
+    
+    # Ensure an event loop is explicitly set for Python on this cloud host
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    # This handles polling safely without event loop conflicts on cloud hosts
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
