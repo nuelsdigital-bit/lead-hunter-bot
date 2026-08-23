@@ -124,6 +124,16 @@ HTML_TEMPLATE = """
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            transition: background 0.2s;
+        }
+        .mic-btn.listening {
+            background: #dc2626;
+            border-color: #dc2626;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+            50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
         }
         .send-btn {
             background: #0284c7;
@@ -140,6 +150,13 @@ HTML_TEMPLATE = """
         }
         .send-btn:hover { background: #0369a1; }
         .send-btn:disabled { background: #475569; cursor: not-allowed; }
+        .voice-status {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #38bdf8;
+            min-height: 16px;
+            margin-top: -6px;
+        }
         .response-container {
             margin-top: 20px;
             background: #0f172a;
@@ -174,8 +191,9 @@ HTML_TEMPLATE = """
         <form id="leadForm">
             <div class="input-group">
                 <textarea id="userQuery" placeholder="e.g. Developer in Maitama says they have an in-house team..."></textarea>
+                <div class="voice-status" id="voiceStatus"></div>
                 <div class="input-actions">
-                    <button type="button" class="mic-btn" title="Voice input">🎙️</button>
+                    <button type="button" class="mic-btn" id="micBtn" title="Voice input">🎙️</button>
                     <button type="submit" id="submitBtn" class="send-btn" title="Send query">🚀</button>
                 </div>
             </div>
@@ -192,21 +210,73 @@ HTML_TEMPLATE = """
             textarea.value = `Pitch strategy for ${district}: `;
             textarea.focus();
         }
+
         const form = document.getElementById('leadForm');
         const submitBtn = document.getElementById('submitBtn');
         const loading = document.getElementById('loading');
         const responseContainer = document.getElementById('responseContainer');
         const responseBox = document.getElementById('responseBox');
         const userQueryInput = document.getElementById('userQuery');
+        const micBtn = document.getElementById('micBtn');
+        const voiceStatus = document.getElementById('voiceStatus');
+
+        // ---- Voice input (Chrome's free built-in speech-to-text) ----
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let listening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-NG';
+
+            recognition.onstart = () => {
+                listening = true;
+                micBtn.classList.add('listening');
+                voiceStatus.textContent = 'Listening...';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userQueryInput.value = transcript;
+            };
+
+            recognition.onerror = () => {
+                voiceStatus.textContent = 'Voice input failed — try typing instead.';
+                setTimeout(() => { voiceStatus.textContent = ''; }, 3000);
+            };
+
+            recognition.onend = () => {
+                listening = false;
+                micBtn.classList.remove('listening');
+                voiceStatus.textContent = '';
+            };
+
+            micBtn.addEventListener('click', () => {
+                if (listening) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            });
+        } else {
+            micBtn.addEventListener('click', () => {
+                voiceStatus.textContent = "Voice input isn't supported in this browser — try Chrome.";
+                setTimeout(() => { voiceStatus.textContent = ''; }, 4000);
+            });
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const query = userQueryInput.value.trim();
             if (!query) return;
+
             submitBtn.disabled = true;
             loading.style.display = 'block';
             responseContainer.style.display = 'none';
             responseBox.innerText = '';
+
             try {
                 const res = await fetch('/generate', {
                     method: 'POST',
@@ -214,6 +284,7 @@ HTML_TEMPLATE = """
                     body: JSON.stringify({ query: query })
                 });
                 const data = await res.json();
+
                 if (data.reply) {
                     responseBox.innerText = data.reply;
                 } else {
