@@ -33,7 +33,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             # Asynchronous Gemini call to prevent blocking the web server
             response = await client.aio.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-3.6-flash",
                 contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
             )
             reply = response.text
