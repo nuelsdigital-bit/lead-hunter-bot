@@ -4,6 +4,7 @@ import asyncio
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from google import genai
+from google.genai import types
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 
@@ -28,24 +29,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_query = update.message.text.strip()
     await update.message.reply_text("🗣️ Lead Hunter AI: Analyzing market data & formulating strategy...")
-    
+
     reply = ""
     for attempt in range(3):
         try:
-            # Asynchronous Gemini call to prevent blocking the web server
-            response = await client.aio.models.generate_content(
+            # Asynchronous Gemini call with safe config
+            response = client.models.generate_content(
                 model="gemini-3.6-flash",
-                contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
+                contents=user_query,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.7,
+                )
             )
             reply = response.text
             break
         except Exception as e:
-            if "503" in str(e) and attempt < 2:
-                await asyncio.sleep(2)
+            error_str = str(e)
+            if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < 2:
+                await asyncio.sleep(4) # Pause briefly to let the quota window reset
                 continue
-            reply = f"⚠️ Error Details: {str(e)}"
+            reply = f"⚠️ Error Details: {error_str}"
             break
-            
+
     # Telegram limits messages to 4096 characters
     MAX_LEN = 4000
     for i in range(0, len(reply), MAX_LEN):
@@ -57,7 +63,7 @@ def main():
 
     port = int(os.environ.get("PORT", 10000))
     webhook_url = f"https://lead-hunter-bot-bpgf.onrender.com/{TELEGRAM_TOKEN}"
-    
+
     application.run_webhook(
         listen="0.0.0.0",
         port=port,
