@@ -20,6 +20,7 @@ SYSTEM_PROMPT = (
     "Include ONE ready-to-use pitch line or script snippet, no more. "
     "Keep the entire response under 150 words. No long intros, no restating the question, "
     "no multiple sections or headers. Get straight to the strategy."
+)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
