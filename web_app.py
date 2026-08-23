@@ -17,7 +17,6 @@ SYSTEM_PROMPT = (
     "that people would gladly pay a monthly subscription to access. Maintain a professional, sharp, and sharp-witted tone."
 )
 
-# HTML template with a clean frontend interface
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -158,9 +157,9 @@ def generate():
         return jsonify({"error": "Query cannot be empty"}), 400
 
     try:
-        # Generate content via Gemini synchronously for the web route handler
+        # Updated to use gemini-3.6-flash
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
         )
         return jsonify({"reply": response.text})
