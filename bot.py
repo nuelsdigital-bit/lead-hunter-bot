@@ -31,7 +31,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = ""
     for attempt in range(3):
         try:
-            response = client.models.generate_content(
+            # Asynchronous Gemini call to prevent blocking the web server
+            response = await client.aio.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
             )
@@ -39,7 +40,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
         except Exception as e:
             if "503" in str(e) and attempt < 2:
-                # Safely sleep in async without freezing the server
                 await asyncio.sleep(2)
                 continue
             reply = f"⚠️ Error Details: {str(e)}"
@@ -48,16 +48,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(reply)
 
 def main():
-    # Initialize the Telegram Application natively
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     port = int(os.environ.get("PORT", 10000))
-    
-    # Corrected URL: using 'bpgf' to match your actual Render dashboard URL exactly
     webhook_url = f"https://lead-hunter-bot-bpgf.onrender.com/{TELEGRAM_TOKEN}"
     
-    # Run using the built-in async web server
     application.run_webhook(
         listen="0.0.0.0",
         port=port,
