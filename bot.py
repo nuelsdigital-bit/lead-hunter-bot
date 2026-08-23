@@ -1,20 +1,16 @@
 import logging
 import os
-import threading
-import time
-from flask import Flask
+from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from google import genai
+import asyncio
 
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL") # Automatically provided by Render
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -27,53 +23,54 @@ SYSTEM_PROMPT = (
     "that people would gladly pay a monthly subscription to access. Maintain a professional, sharp, and sharp-witted tone."
 )
 
-# Initialize Flask app for Render web service health checks
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return "Lead Hunter AI Bot is active and running!"
+# Initialize Telegram Application for Webhook
+telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-def run_telegram_bot():
-    """Runs the Telegram bot polling loop in a separate background thread."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_query = update.message.text.strip()
+    await update.message.reply_text("🗣️ Lead Hunter AI: Analyzing market data & formulating strategy...")
     
-    async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_query = update.message.text.strip()
-        await update.message.reply_text("🗣️ Lead Hunter AI: Analyzing market data & formulating strategy...")
-        
-        reply = ""
-        # Automatic retry loop to handle 503 high-demand spikes
-        for attempt in range(3):
-            try:
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
-                )
-                reply = response.text
-                break
-            except Exception as e:
-                if "503" in str(e) and attempt < 2:
-                    time.sleep(2)  # Wait 2 seconds before retrying
-                    continue
-                reply = f"⚠️ Error Details: {str(e)}"
+    reply = ""
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
+            )
+            reply = response.text
+            break
+        except Exception as e:
+            if "503" in str(e) and attempt < 2:
+                import time
+                time.sleep(2)
+                continue
+            reply = f"⚠️ Error Details: {str(e)}"
             
-        await update.message.reply_text(reply)
+    await update.message.reply_text(reply)
 
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    
-    print("🤖 Telegram Bot Polling Started...")
-    application.run_polling(drop_pending_updates=True)
+telegram_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+
+@app.route("/")
+def index():
+    return "Lead Hunter AI Webhook Server is Live!"
+
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def webhook():
+    """Endpoint that Telegram calls when a user sends a message"""
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    asyncio.run(telegram_app.process_update(update))
+    return "ok", 200
 
 if __name__ == "__main__":
-    # Start Telegram bot in a background thread so Flask can run on the main thread
-    bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-    bot_thread.start()
+    # Automatically set webhook url on startup
+    if RENDER_EXTERNAL_URL:
+        import requests
+        webhook_url = f"{RENDER_EXTERNAL_URL}/{TELEGRAM_TOKEN}"
+        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook?url={webhook_url}")
+        logging.info(f"Webhook set to: {webhook_url}")
 
-    # Bind Flask to Render's required PORT
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
     
