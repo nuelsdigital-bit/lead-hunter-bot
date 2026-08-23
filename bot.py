@@ -33,26 +33,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = ""
     for attempt in range(3):
         try:
-            # Asynchronous Gemini call with safe config
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-3.6-flash",
                 contents=user_query,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.7,
-                
+                )
             )
             reply = response.text
             break
         except Exception as e:
             error_str = str(e)
             if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < 2:
-                await asyncio.sleep(4) # Pause briefly to let the quota window reset
+                await asyncio.sleep(4)
                 continue
             reply = f"⚠️ Error Details: {error_str}"
             break
 
-    # Telegram limits messages to 4096 characters
     MAX_LEN = 4000
     for i in range(0, len(reply), MAX_LEN):
         await update.message.reply_text(reply[i:i+MAX_LEN])
@@ -73,4 +71,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
