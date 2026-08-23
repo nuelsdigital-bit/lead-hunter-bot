@@ -2,6 +2,8 @@ import logging
 import os
 import asyncio
 import traceback
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 from google import genai
@@ -26,6 +28,18 @@ SYSTEM_PROMPT = (
     "that people would gladly pay a monthly subscription to access. Maintain a professional, sharp, and sharp-witted tone."
 )
 
+# Tiny HTTP server to satisfy Render's port binding requirement
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Lead Hunter AI Bot is running!")
+
+def run_health_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_query = update.message.text.strip()
     
@@ -47,6 +61,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("🤖 Lead Hunter AI Dynamic Engine Active...")
     
+    # Start the health check server in a separate thread so Render port binding passes
+    server_thread = Thread(target=run_health_server, daemon=True)
+    server_thread.start()
+
     # Ensure an event loop is explicitly set for Python on this cloud host
     try:
         loop = asyncio.get_event_loop()
