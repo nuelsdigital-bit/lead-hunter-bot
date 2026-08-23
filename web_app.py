@@ -2,6 +2,7 @@ import os
 import time
 from flask import Flask, render_template_string, request, jsonify
 from google import genai
+from google.genai import types
 
 app = Flask(__name__)
 
@@ -271,18 +272,22 @@ def generate():
     if not user_query:
         return jsonify({"error": "Query cannot be empty"}), 400
 
-    # Added retry loop to safely handle temporary 429 quota spikes
     for attempt in range(3):
         try:
+            # Explicitly configuring system instruction properly via types
             response = client.models.generate_content(
                 model="gemini-3.6-flash",
-                contents=f"{SYSTEM_PROMPT}\n\nUser Request: {user_query}"
+                contents=user_query,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.7,
+                )
             )
             return jsonify({"reply": response.text})
         except Exception as e:
             error_str = str(e)
             if "429" in error_str and attempt < 2:
-                time.sleep(3) # Wait briefly before retrying
+                time.sleep(3)
                 continue
             return jsonify({"error": error_str}), 500
 
