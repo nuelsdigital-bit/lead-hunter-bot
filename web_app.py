@@ -9,13 +9,12 @@ app = Flask(__name__)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+# Strict short prompt for fast, punchy responses
 SYSTEM_PROMPT = (
-    "You are Lead Hunter AI, an elite, high-end B2B sales strategist, corporate lead generator, "
-    "and business consultant specializing in the Nigerian market (especially Abuja: Maitama, Wuse, Utako, Guzape, Asokoro, Kubwa, etc.). "
-    "Your users are ambitious professionals, service providers, and real estate entrepreneurs. "
-    "Never give generic answers. Provide deep, actionable business intelligence, precise target departments, "
-    "culturally tailored Nigerian corporate pitch hooks, objection-handling scripts, and insider market advice "
-    "that people would gladly pay a monthly subscription to access. Maintain a professional, sharp, and sharp-witted tone."
+    "You are Lead Hunter AI, an elite B2B sales strategist for Abuja, Nigeria. "
+    "Keep responses extremely short and punchy. "
+    "Provide max 3 short action bullet points and ONE short closing pitch script. "
+    "No long introductions, no filler. Total response must be under 120 words."
 )
 
 HTML_TEMPLATE = """
@@ -49,22 +48,14 @@ HTML_TEMPLATE = """
         .header {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             margin-bottom: 20px;
         }
-        .logo-icon {
-            width: 36px;
-            height: 36px;
-            border: 2px solid #38bdf8;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #38bdf8;
-            font-weight: bold;
+        .logo-img {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
         }
-        h1 { font-size: 1.4rem; color: #fff; margin: 0; }
-        .subtitle { font-size: 0.75rem; color: #38bdf8; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
         
         .briefing-box {
             background: #0f172a;
@@ -109,7 +100,7 @@ HTML_TEMPLATE = """
         .input-group:focus-within { border-color: #38bdf8; }
         textarea {
             width: 100%;
-            height: 90px;
+            height: 80px;
             background: transparent;
             border: none;
             color: #fff;
@@ -170,17 +161,14 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo-icon">⚡</div>
-            <div>
-                <h1>LeadHunter AI</h1>
-                <div class="subtitle">Abuja B2B Sales Intelligence</div>
-            </div>
+            <!-- Exact custom user logo embedded -->
+            <img src="https://raw.githubusercontent.com/nuelsdigital-bit/lead-hunter-bot/main/logo.png" alt="LeadHunter AI Logo" class="logo-img" onerror="this.src='https://i.ibb.co/3s8sX2c/logo.png'">
         </div>
 
         <div class="briefing-box">
             <div class="briefing-title">Briefing</div>
             <div class="briefing-heading">Every objection has a way in.</div>
-            <p class="briefing-desc">Describe the deal, the district, and what's blocking you. Get a tactical 3-step play and a ready-to-use script — built for how business actually closes in Abuja.</p>
+            <p class="briefing-desc">Describe the deal, district, and blocker. Get a fast 3-step play and script built for Abuja.</p>
         </div>
 
         <div class="tags">
@@ -194,7 +182,7 @@ HTML_TEMPLATE = """
 
         <form id="leadForm">
             <div class="input-group">
-                <textarea id="userQuery" placeholder="e.g. Real estate developer in Maitama says they have an in-house plumber..."></textarea>
+                <textarea id="userQuery" placeholder="e.g. Developer in Maitama says they have an in-house team..."></textarea>
                 <div class="input-actions">
                     <button type="button" class="mic-btn" title="Voice input">🎙️</button>
                     <button type="submit" id="submitBtn" class="send-btn" title="Send query">🚀</button>
@@ -202,10 +190,10 @@ HTML_TEMPLATE = """
             </div>
         </form>
 
-        <div id="loading" class="loading">🗣️ Analyzing Abuja market data & formulating strategy...</div>
+        <div id="loading" class="loading">⚡ Generating fast tactical play...</div>
         
         <div id="responseContainer" class="response-container">
-            <div class="response-header">Tactical Output & Script</div>
+            <div class="response-header">Quick Tactical Output</div>
             <div id="responseBox" class="response-body"></div>
         </div>
     </div>
@@ -213,7 +201,7 @@ HTML_TEMPLATE = """
     <script>
         function insertTag(district) {
             const textarea = document.getElementById('userQuery');
-            textarea.value = `Give me a pitch strategy and script for a deal in ${district}: `;
+            textarea.value = `Pitch strategy for ${district}: `;
             textarea.focus();
         }
 
@@ -245,7 +233,7 @@ HTML_TEMPLATE = """
                 if (data.reply) {
                     responseBox.innerText = data.reply;
                 } else {
-                    responseBox.innerText = '⚠️ Error: ' + (data.error || 'Server rate limit exceeded. Please wait 30 seconds and try again.');
+                    responseBox.innerText = '⚠️ ' + (data.error || 'Please wait a moment and try again.');
                 }
             } catch (err) {
                 responseBox.innerText = '⚠️ Network Error: ' + err.message;
@@ -274,20 +262,20 @@ def generate():
 
     for attempt in range(3):
         try:
-            # Explicitly configuring system instruction properly via types
             response = client.models.generate_content(
                 model="gemini-3.6-flash",
                 contents=user_query,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
-                    temperature=0.7,
+                    temperature=0.6,
+                    max_output_tokens=250, # Forces short, lightning-fast replies
                 )
             )
             return jsonify({"reply": response.text})
         except Exception as e:
             error_str = str(e)
             if "429" in error_str and attempt < 2:
-                time.sleep(3)
+                time.sleep(2)
                 continue
             return jsonify({"error": error_str}), 500
 
